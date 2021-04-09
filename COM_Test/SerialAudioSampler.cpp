@@ -23,6 +23,7 @@ SerialAudioSampler::SerialAudioSampler(const std::string& port, int baudRate, UI
 
 SerialAudioSampler::~SerialAudioSampler()
 {
+	_serial.closeDevice();
 	appLog(Debug) << "SerialAudioSampler destroyed.";
 }
 
