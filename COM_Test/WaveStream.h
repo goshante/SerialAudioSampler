@@ -35,7 +35,7 @@ public:
 			push_back(bData[i]);
 	}
 
-	void makeWaveFile(WORD channels, SamplingRate_t samplingRate);
+	void makeWave(WORD channels, SamplingRate_t samplingRate, WORD bps);
 	bool saveToFile(const std::string& path);
 };
 
@@ -49,7 +49,7 @@ private:
 
 public:
 	WaveStream();
-	WaveStream(UINT device, WORD bps, SamplingRate_t samplingRate, int channels);
+	WaveStream(WORD bps, SamplingRate_t samplingRate, int channels);
 	WaveStream(const WaveStream&) = delete;
 	~WaveStream();
 

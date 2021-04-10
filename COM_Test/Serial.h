@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <string>
 
 struct timeval_t
 {
@@ -47,7 +48,7 @@ public:
     SerialMgr();
     ~SerialMgr();
 
-    errCode openDevice(const char* Device, const unsigned int Bauds);
+    errCode openDevice(std::string port, const unsigned int Bauds);
     void closeDevice();
 
     int getCurrentBaudRate();

@@ -1,5 +1,7 @@
 #include "Serial.h"
 #include <stdexcept>
+#include <thread>
+#include <chrono>
 
 using uint64_t = unsigned long long int;
 
@@ -17,9 +19,10 @@ SerialMgr::~SerialMgr()
     closeDevice();
 }
 
-SerialMgr::errCode SerialMgr::openDevice(const char* Device, const unsigned int Bauds)
+SerialMgr::errCode SerialMgr::openDevice(std::string port, const unsigned int Bauds)
 {
-    _hSerial = CreateFileA(Device, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    port = "\\\\.\\" + port;
+    _hSerial = CreateFileA(port.c_str(), GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (_hSerial == INVALID_HANDLE_VALUE) 
     {
         if (GetLastError() == ERROR_FILE_NOT_FOUND)

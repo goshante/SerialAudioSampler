@@ -74,12 +74,12 @@ int main()
 			std::cin >> mode;
 		appLog(Debug) << "Mode " << mode;
 
-		SerialAudioSampler sampler(settings.SerialPort, settings.BaudRate, settings.SampleCalcDurationSec, settings.Device);
+		SerialAudioSampler sampler(settings.SerialPort, settings.BaudRate, settings.SampleCalcDurationSec);
 
 		if (mode == 0)
 			sampler.StartSamplingToFile(settings.FileName);
 		else
-			sampler.StartSamplingToWaveStream(settings.StreamBufferMs);
+			sampler.StartSamplingToWaveStream(settings.StreamBufferMs, settings.Device);
 
 		std::cout << "Press F12 to stop..." << std::endl;
 		while (!(GetKeyState(VK_F12) & 0x8000))
@@ -93,6 +93,8 @@ int main()
 		appLog(Critical) << "Error occured: " << ex.what();
 		return -1;
 	}
+
+
 
 	return 0;
 }

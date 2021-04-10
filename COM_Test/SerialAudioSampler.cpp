@@ -4,7 +4,7 @@
 #include "SerialAudioSampler.h"
 #include "Logger.h"
 
-SerialAudioSampler::SerialAudioSampler(const std::string& port, int baudRate, UINT SamplingRateCalculationDurSec, UINT audioDeviceNum)
+SerialAudioSampler::SerialAudioSampler(const std::string& port, int baudRate, UINT SamplingRateCalculationDurSec)
 	: _isSampling(false)
 	, _stopFlag(false)
 {
@@ -13,12 +13,11 @@ SerialAudioSampler::SerialAudioSampler(const std::string& port, int baudRate, UI
 	appLog(Info) << "Connected to " << port << " with baud rate " << baudRate;
 	appLog(Info) << "Calculating sampling rate... " << "Measure time (sec): " << SamplingRateCalculationDurSec;
 	auto freq = _calculateSamplingRate(SamplingRateCalculationDurSec);
-	appLog(Info) << "Sampling rate is " << freq << " Hz";
 
-	constexpr auto bps = 16;
+	constexpr auto bps = sizeof(WaveSample16_t) * 8;
 	constexpr auto channels = 1;
 
-	_wave.Initialize(audioDeviceNum, bps, freq, channels);
+	_wave .reset(new WaveStream(bps, freq, channels));
 }
 
 SerialAudioSampler::~SerialAudioSampler()
@@ -67,7 +66,7 @@ void SerialAudioSampler::StartSamplingToFile(const std::string& fileName)
 	_worker = std::thread(&SerialAudioSampler::_sampleToFile, this, fileName);
 }
 
-void SerialAudioSampler::StartSamplingToWaveStream(int msBuffer)
+void SerialAudioSampler::StartSamplingToWaveStream(int msBuffer, UINT device)
 {
 	if (_isSampling.load())
 		throw std::runtime_error("Cannot do StartSamplingToWaveStream(). Already working.");
@@ -75,6 +74,7 @@ void SerialAudioSampler::StartSamplingToWaveStream(int msBuffer)
 	_isSampling = true;
 	_stopFlag = false;
 
+	_wave->Initialize(device, _wave->GetBPS(), _wave->GetSamplingRate(), _wave->GetChannels());
 	_worker = std::thread(&SerialAudioSampler::_sampleToStream, this, msBuffer);
 }
 
@@ -89,7 +89,7 @@ void SerialAudioSampler::_sampleToFile(std::string fileName)
 		buffer.append<WaveSample16_t>(sample);
 	}
 
-	buffer.makeWaveFile(_wave.GetChannels(), _wave.GetSamplingRate());
+	buffer.makeWave(_wave->GetChannels(), _wave->GetSamplingRate(), _wave->GetBPS());
 	buffer.saveToFile(fileName);
 	_isSampling = false;
 }
@@ -100,9 +100,9 @@ void SerialAudioSampler::_sampleToStream(int msBuffer)
 	auto time = Utils::getTimeMs();
 	auto lastTime = time;
 	auto devices = Utils::getAudioDeviceList();
-	auto devId = _wave.GetDevice();
+	auto devId = _wave->GetDevice();
 
-	appLog(Info) << "Streaming to " << devices[devId] << " with sampling rate " << _wave.GetSamplingRate() <<  " Hz";
+	appLog(Info) << "Streaming to " << devices[devId] << " with sampling rate " << _wave->GetSamplingRate() <<  " Hz";
 
 	while (_stopFlag.load() == false)
 	{
@@ -114,7 +114,7 @@ void SerialAudioSampler::_sampleToStream(int msBuffer)
 		time = Utils::getTimeMs();
 		if (time - lastTime >= msBuffer)
 		{
-			_wave.PushSegment(buffer);
+			_wave->PushSegment(buffer);
 			buffer.reset(new WaveBuffer_t);
 			lastTime = time;
 		}

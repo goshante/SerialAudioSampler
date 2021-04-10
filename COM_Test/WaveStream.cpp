@@ -8,19 +8,20 @@ void WaveBuffer_t::append(const void* data, size_t size)
 		push_back(bData[i]);
 }
 
-void WaveBuffer_t::makeWaveFile(WORD channels, SamplingRate_t samplingRate)
+void WaveBuffer_t::makeWave(WORD channels, SamplingRate_t samplingRate, WORD bps)
 {
 	WaveBuffer_t wave;
 	wave.append((const byte*)"RIFF", 4);
 	wave.append<int>(36 + (size()));
-	wave.append((const byte*)"WAVEfmt ", 8);
+	wave.append((const byte*)"WAVE", 4);
+	wave.append((const byte*)"fmt ", 4);
 	wave.append<int>(16);
 	wave.append<WORD>(WAVE_FORMAT_PCM);
 	wave.append<WORD>(channels);
 	wave.append<SamplingRate_t>(samplingRate);
-	wave.append<int>(samplingRate * channels * sizeof(WaveSample16_t));
-	wave.append<WORD>(channels * sizeof(WaveSample16_t));
-	wave.append<WORD>(sizeof(WaveSample16_t) * 8);
+	wave.append<int>(samplingRate * channels * (bps / 8));
+	wave.append<WORD>(channels * (bps / 8));
+	wave.append<WORD>(bps);
 	wave.append((const byte*)"data", 4);
 	wave.append<size_t>(size());
 	wave.append(&at(0), size());
@@ -49,18 +50,19 @@ void CALLBACK callback(HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR inst, DWORD_PTR p
 
 WaveStream::WaveStream()
 	: _hWaveOut(NULL)
-	, _wfx({ 0,0,0,0,0,0,0 })
+	, _wfx({ WAVE_FORMAT_PCM,0,0,0,0,0,0 })
 	, _device(0)
 {
 }
 
-WaveStream::WaveStream(UINT device, WORD bps, SamplingRate_t samplingRate, int channels)
+WaveStream::WaveStream(WORD bps, SamplingRate_t samplingRate, int channels)
 	: _hWaveOut(NULL)
-	, _wfx({0,0,0,0,0,0,0})
+	, _wfx({ WAVE_FORMAT_PCM,0,0,0,0,0,0 })
 	, _device(0)
 {
-	if (!Initialize(device, bps, samplingRate, channels))
-		throw std::runtime_error("Failed to initialize WaveStream");
+	_wfx.wBitsPerSample = bps;
+	_wfx.nSamplesPerSec = samplingRate;
+	_wfx.nChannels = channels;
 }
 
 bool WaveStream::Initialize(UINT device, WORD bps, SamplingRate_t samplingRate, int channels)
@@ -71,8 +73,8 @@ bool WaveStream::Initialize(UINT device, WORD bps, SamplingRate_t samplingRate, 
 			return false;
 	}
 
-	_device = device;
 	_wfx.wFormatTag = WAVE_FORMAT_PCM;
+	_device = device;
 	_wfx.wBitsPerSample = bps;
 	_wfx.nChannels = channels;
 	_wfx.nSamplesPerSec = samplingRate;
@@ -96,6 +98,9 @@ WaveStream::~WaveStream()
 
 void WaveStream::PushSegment(WaveBufferPtr buffer)
 {
+	if (!_hWaveOut)
+		throw std::runtime_error("WaveStream is not initialized.");
+
 	std::shared_ptr<WAVEHDR> header(new WAVEHDR);
 	*header = { LPSTR(&(buffer->operator[](0))), buffer->size(), 0, 0, 0, 0, 0, 0 };
 	WaveQueueUnit sound = { buffer, header };

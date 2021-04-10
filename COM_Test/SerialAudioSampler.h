@@ -10,11 +10,11 @@
 class SerialAudioSampler
 {
 private:
-	SerialMgr			_serial;
-	WaveStream			_wave;
-	std::atomic<bool>	_isSampling;
-	std::atomic<bool>	_stopFlag;
-	std::thread			_worker;
+	SerialMgr						_serial;
+	std::unique_ptr<WaveStream>		_wave;
+	std::atomic<bool>				_isSampling;
+	std::atomic<bool>				_stopFlag;
+	std::thread						_worker;
 
 	SamplingRate_t _calculateSamplingRate(UINT dur);
 	void _sampleToFile(std::string fileName);
@@ -23,12 +23,12 @@ private:
 	static constexpr float SAMPLE_REDUCE_FACTOR = 0.33f;
 
 public:
-	SerialAudioSampler(const std::string& port, int baudRate, UINT SamplingRateCalculationDurSec, UINT audioDeviceNum);
+	SerialAudioSampler(const std::string& port, int baudRate, UINT SamplingRateCalculationDurSec);
 	SerialAudioSampler(const SerialAudioSampler&) = delete;
 	~SerialAudioSampler();
 
 	void StartSamplingToFile(const std::string& fileName);
-	void StartSamplingToWaveStream(int msBuffer);
+	void StartSamplingToWaveStream(int msBuffer, UINT device);
 
 	void Stop();
 	void Sync();
